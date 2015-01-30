@@ -16,6 +16,11 @@ module Puppet
       attr_reader :source_description, :containment_path,
                   :default_log_level, :time, :resource, :change_count,
                   :out_of_sync_count, :resource_type, :title
+      attr_accessor :dependency_failed
+
+      def dependency_failed?
+        dependency_failed
+      end
 
       YAML_ATTRIBUTES = %w{@resource @file @line @evaluation_time @change_count
                            @out_of_sync_count @tags @time @events @out_of_sync
