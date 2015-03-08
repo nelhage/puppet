@@ -306,6 +306,39 @@ describe Puppet::Transaction do
     Puppet::FileSystem.exist?(file2[:path]).should be_false
   end
 
+  it "on failure, skips dynamically-generated dependents" do
+    exec = Puppet::Type.type(:exec).new(
+      :command => "#{File.expand_path('/bin/mkdir')} /this/path/cannot/possibly/exist",
+      :title => "mkdir"
+    )
+
+    tmp = tmpfile("dir1")
+    FileUtils.mkdir_p(tmp)
+    FileUtils.mkdir_p(File.join(tmp, "foo"))
+
+    purge_dir = Puppet::Type.type(:file).new(
+      :title => "dir1",
+      :path => tmp,
+      :require => exec,
+      :ensure => :directory,
+      :recurse => true,
+      :purge => true
+    )
+
+    catalog = mk_catalog(exec, purge_dir)
+    txn = catalog.apply
+
+    expect(txn.resource_status(purge_dir).skipped).to be_true
+
+    children = catalog.relationship_graph.direct_dependents_of(purge_dir)
+
+    children.each do |child|
+      expect(txn.resource_status(child).skipped).to be_true
+    end
+
+    expect(Puppet::FileSystem.exist?(File.join(tmp, "foo"))).to be_true
+  end
+
   it "should not trigger subscribing resources on failure" do
     file1 = tmpfile("file1")
     file2 = tmpfile("file2")
